@@ -1,0 +1,91 @@
+{
+  "name": "dsh-sensenova-vision-aid",
+  "version": "0.1.0-alpha.1",
+  "description": "Unofficial DeepSeek Harness vision plugin: when the main model receives an image-recognition request, it spawns a child agent switched to the SenseNova vision model (reusing the dsh-sensenova-freeapi credential), with a dedicated settings panel and a direct fallback path.",
+  "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "docs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.2",
+    "@deepseek-ai/schemastery": ">=3.18.2",
+    "@deepseek-ai/dsh-api-remotes": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-client-connection": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-client-locale": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-client-ui-primitives": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-credentials": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-home-paths": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-launch-environment": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-llm": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-settings": ">=0.1.2-alpha.3",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-alpha.3",
+    "react": ">=18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/schemastery": "3.18.4",
+    "@deepseek-ai/dsh-api-remotes": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-connection": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-locale": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-primitives": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-client-ui-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-credentials": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-home-paths": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-launch-environment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-settings": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-subagent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-attachment": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
+    "@types/node": "^22.10.0",
+    "tsdown": "^0.23.0",
+    "tsx": "^4.23.12",
+    "typescript": "~5.9.3"
+  }
+}

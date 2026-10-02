@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# npm 发布依赖 peerDependencies 范围，锁文件为本地安装残留不入库
+pnpm-lock.yaml
+package-lock.json
+
+# Build outputs（lib/ 需入库：dsh plugin add github:... 直接安装整个仓库，依赖构建产物）
+lib/*.map
+out/
+dist/
+
+# 内部设计文档（含本机绝对路径，不随 GitHub 发布；npm 发布由 package.json files 控制）
+docs/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
