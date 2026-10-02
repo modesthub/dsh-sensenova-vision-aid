@@ -6,6 +6,8 @@ dsh-sensenova-vision-aid is an unofficial **DeepSeek Harness** (DSH) vision-assi
 
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
+> 🔭 **Pairing recommendation:** works best alongside [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi) — freeapi provides the `sensenova` LLM route (enabling the child-agent primary path) plus multi-account key rotation, and this plugin **reuses freeapi's key automatically** (default `reuseFreeapiCredentials=true`, no second key needed). **Best combination: run the main model on `deepseek-v4-flash` (via freeapi; fast, stable, low-cost) for text/code/agent work, and let vision-aid handle image recognition — fast and reliable.**
+
 > Architecture and design decisions: [docs/design.md](docs/design.md) (Chinese).
 
 ---
@@ -40,7 +42,7 @@ Settings-page "SenseNova Vision Assist" section (order 14) + a read-only Models-
 dsh plugin --profile desktop add D:\TRAE_Space\research-deepseek-harness\scratch-plugin-to-github\dsh-sensenova-vision-aid
 
 # After publishing (GitHub / npm)
-dsh plugin --profile <name> add github:<your-username>/dsh-sensenova-vision-aid
+dsh plugin --profile <name> add github:modesthub/dsh-sensenova-vision-aid
 dsh plugin --profile <name> add dsh-sensenova-vision-aid
 ```
 

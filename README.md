@@ -6,6 +6,8 @@ dsh-sensenova-vision-aid 是一个非官方的 **DeepSeek Harness**（DSH）视�
 
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
+> 🔭 **搭配推荐**：与 [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi) 搭配使用效果更好 —— freeapi 提供 `sensenova` LLM 路由（子 agent 主路径启用）+ 多账户 key 轮换，本插件自动**复用 freeapi 同一把 key**（默认 `reuseFreeapiCredentials=true`，无需再配第二把 key）。**最合适的组合：主模型用 `deepseek-v4-flash`（freeapi，快且稳、成本低）处理文本/代码/Agent，图片识别交给 vision-aid 辅助视觉**，又快又好。
+
 > 架构设计与决策详见 [docs/design.md](docs/design.md)。
 
 ---
@@ -40,7 +42,7 @@ dsh-sensenova-vision-aid 是一个非官方的 **DeepSeek Harness**（DSH）视�
 dsh plugin --profile desktop add D:\TRAE_Space\research-deepseek-harness\scratch-plugin-to-github\dsh-sensenova-vision-aid
 
 # 发布后（GitHub / npm）
-dsh plugin --profile <name> add github:<你的用户名>/dsh-sensenova-vision-aid
+dsh plugin --profile <name> add github:modesthub/dsh-sensenova-vision-aid
 dsh plugin --profile <name> add dsh-sensenova-vision-aid
 ```
 
