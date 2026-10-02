@@ -34,6 +34,14 @@ export interface SubagentVisionResult {
   latencyMs: number;
 }
 
+/** 子 agent 路径失败原因（orchestrator 透传到 attempts，便于诊断）。 */
+export interface SubagentVisionFailure {
+  reason: string;
+}
+
+/** preflight 或运行失败的返回值类型：undefined 之外的失败带原因。 */
+export type SubagentVisionOutcome = SubagentVisionResult | SubagentVisionFailure | undefined;
+
 /** 子 agent 服务的最小结构面。 */
 export interface SubagentsLike {
   getProvider(name: string): {
@@ -71,39 +79,48 @@ export interface RunVisionSubagentOptions {
 }
 
 /**
- * 执行一次 one-shot 子 agent 识别。任何一步失败（preflight / start / result /
- * dispose）返回 undefined（交 orchestrator 回落直连）。图片经附件服务 admit 为
- * ImageBlock；admit 失败（无附件服务 / http 源 / 保存异常）同样回落。
+ * 执行一次 one-shot 子 agent 识别。任何一步失败返回 SubagentVisionFailure（含具体
+ * 原因，orchestrator 透传到 attempts 便于诊断）；成功返回 SubagentVisionResult。
+ * 图片经附件服务 admit 为 ImageBlock；admit 失败（无附件服务 / http 源 / 保存异常）
+ * 同样以失败原因返回。
  */
 export async function runVisionSubagent(
   ctx: Context,
   options: RunVisionSubagentOptions,
-): Promise<SubagentVisionResult | undefined> {
+): Promise<SubagentVisionOutcome> {
   const now = options.now ?? Date.now;
   const started = now();
   let run: SubagentRun | undefined;
   try {
     // ── preflight ────────────────────────────────────────────────────────────
     const subagents = ctx.get('subagents') as SubagentsLike | undefined;
-    if (subagents === undefined) return undefined;
+    if (subagents === undefined) return { reason: 'subagents service unavailable' };
     const spawnProvider = subagents.getProvider(options.provider);
-    if (spawnProvider === undefined) return undefined;
+    if (spawnProvider === undefined) return { reason: `subagent provider '${options.provider}' not found` };
     const capabilities = spawnProvider.capabilities ?? {};
     if (!capabilities.agentOptions || !capabilities.persona || !capabilities.toolFilter
       || !capabilities.depthLimit) {
-      return undefined;
+      return { reason: `spawn provider lacks capabilities: ${JSON.stringify(capabilities)}` };
     }
     const llm = ctx.get('llm') as LlmLike | undefined;
-    if (llm === undefined) return undefined;
+    if (llm === undefined) return { reason: 'llm service unavailable' };
     // 路由预检：sensenova 适配器（freeapi）未注册时抛/拒 ⇒ 回落直连。
-    await llm.resolveCallConfig({ provider: 'sensenova', model: options.model }, options.signal);
+    try {
+      await llm.resolveCallConfig({ provider: 'sensenova', model: options.model }, options.signal);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { reason: `llm.resolveCallConfig rejected sensenova/${options.model}: ${message}` };
+    }
 
     // ── 图片 admit ──────────────────────────────────────────────────────────
     const attachments = ctx.get('attachments') as AttachmentsLike | undefined;
+    if (attachments === undefined) return { reason: 'attachments service unavailable' };
     const blocks: ContentBlock[] = [];
     for (const image of options.images) {
       const ref = await admitImageRef(attachments, image);
-      if (ref === undefined) return undefined;
+      if (ref === undefined) {
+        return { reason: `image admit failed for source '${image.source}' (http sources cannot be admitted)` };
+      }
       blocks.push({ type: 'image', attachment: ref } satisfies ImageBlock);
     }
     blocks.push({ type: 'text', text: options.promptText });
@@ -122,21 +139,26 @@ export async function runVisionSubagent(
       signal: options.signal,
       agentOptions: { provider: 'sensenova', model: options.model },
       persona: VISION_RECOGNITION_PERSONA,
-      maxDepth: 0,
+      // 不传 maxDepth：DSH 语义下它是绝对深度上限（childDepth=parentDepth+1，
+      // maxDepth:0 会拒绝一切子 agent 启动）。"子 agent 不得再派生子 agent"由
+      // toolFilter deny 委派工具保证（见上）。
       ...toolFilter === undefined ? {} : { toolFilter },
     });
 
     // ── 回收结果 ────────────────────────────────────────────────────────────
     const result: SubagentResult = await run.result;
-    if (result.stopReason !== 'completed') return undefined;
+    if (result.stopReason !== 'completed') {
+      return { reason: `subagent stopped with '${result.stopReason}' (expected 'completed')` };
+    }
     const text = result.output
       .filter((block): block is Extract<ContentBlock, { type: 'text' }> => block.type === 'text')
       .map(block => block.text)
       .join('');
-    if (text.trim() === '') return undefined;
+    if (text.trim() === '') return { reason: 'subagent returned empty text output' };
     return { text, model: options.model, latencyMs: Math.round(now() - started) };
-  } catch {
-    return undefined;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { reason: `subagent path threw: ${message}` };
   } finally {
     // 🔴 铁律：one-shot run 必须 dispose（取消剩余工作并达静默）。dispose 失败
     // 不能把上面的成功结果变成失败（设计决策：识别结果优先，资源清理尽力而为）。

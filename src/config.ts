@@ -25,8 +25,8 @@ export const DEFAULT_SUBAGENT_PROVIDER = 'spawn';
 export const DEFAULT_SUBAGENT_MODEL = 'sensenova-6.8-flash-lite';
 /** 默认复用 freeapi 凭据（开 = 免配第二把 key）。 */
 export const DEFAULT_REUSE_FREEAPI = true;
-/** 默认走子 agent 识别路径。 */
-export const DEFAULT_USE_SUBAGENT = true;
+/** 默认走子 agent 识别路径（关：稳定走直连；开需 DSH 提供 subagents+spawn provider）。 */
+export const DEFAULT_USE_SUBAGENT = false;
 /** 续接会话变体（预留，首版默认关）。 */
 export const DEFAULT_USE_CONTINUABLE = false;
 

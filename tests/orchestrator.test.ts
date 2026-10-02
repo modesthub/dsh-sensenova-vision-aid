@@ -209,7 +209,7 @@ test('describe_image: 子 agent 失败（stopReason error）回落直连', async
     assert.equal(envelope.ok, true);
     assert.equal(envelope.result, 'direct result');
     assert.equal(envelope.metadata.attempts[0].status, 'failed');
-    assert.ok(String(envelope.metadata.attempts[0].error).includes('fell back'));
+    assert.ok(String(envelope.metadata.attempts[0].error).includes('subagent stopped with'));
   } finally {
     await rm(join(file, '..'), { recursive: true, force: true });
   }

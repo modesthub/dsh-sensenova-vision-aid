@@ -93,7 +93,7 @@ test('resolveAdapterOptions: 默认值齐全', () => {
   assert.deepEqual(options.modelChain, ['sensenova-6.8-flash-lite', 'deepseek-flash', 'kimi-k3']);
   assert.equal(options.imageMode, 'image_url');
   assert.equal(options.timeoutMs, 180_000);
-  assert.equal(options.useSubagent, true);
+  assert.equal(options.useSubagent, false);
   assert.equal(options.subagentProvider, 'spawn');
   assert.equal(options.subagentModel, 'sensenova-6.8-flash-lite');
   assert.equal(options.useContinuable, false);

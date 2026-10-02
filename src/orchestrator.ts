@@ -22,7 +22,7 @@ import type { ResolvedVisionAidOptions } from './config.ts';
 import { resolveApiKey } from './credentials.ts';
 import { normalizeImageInput, toDataUrl, type NormalizedImage } from './image-input.ts';
 import { envelopeFail, imagePart, runChain } from './direct.ts';
-import { runVisionSubagent, type SubagentVisionResult } from './subagent-vision.ts';
+import { runVisionSubagent, type SubagentVisionFailure, type SubagentVisionResult } from './subagent-vision.ts';
 /** 一次 `describe_*` 的输入参数（与 MCP 工具签名一致）。 */
 export interface DescribeArgs {
   image?: string;
@@ -109,12 +109,15 @@ export async function describe(
   if (options.useSubagent && images.length > 0) {
     const subagentStarted = Date.now();
     const viaSubagent = await trySubagentPath(ctx, exec, options, images, prompt, taskType);
-    if (viaSubagent !== undefined) return JSON.stringify(viaSubagent);
+    if (viaSubagent !== undefined && 'result' in viaSubagent) return JSON.stringify(viaSubagent);
+    const failure = viaSubagent !== undefined && 'reason' in viaSubagent
+      ? (viaSubagent as SubagentVisionFailure).reason
+      : 'no parent agent for subagent spawn';
     attempts.push({
       model: options.subagentModel,
       status: 'failed',
       latency_ms: Date.now() - subagentStarted,
-      error: 'subagent path unavailable or failed; fell back to direct',
+      error: failure,
     });
   }
 
@@ -220,7 +223,7 @@ export async function chat(
   }
 }
 
-/** 子 agent 主路径尝试：成功返回信封对象，失败/不可用返回 undefined。 */
+/** 子 agent 主路径尝试：成功返回成功信封对象，失败返回失败原因对象，无父 agent 返回 undefined。 */
 async function trySubagentPath(
   ctx: Context,
   exec: ToolRunContext,
@@ -228,11 +231,15 @@ async function trySubagentPath(
   images: NormalizedImage[],
   prompt: string,
   taskType: 'image_reasoning' | 'image_reasoning_multi',
-): Promise<{ ok: true; task_type: TaskKind; tool_used: string; confidence: string; result: string; image_count?: number; metadata: Record<string, unknown> } | undefined> {
+): Promise<
+  | { ok: true; task_type: TaskKind; tool_used: string; confidence: string; result: string; image_count?: number; metadata: Record<string, unknown> }
+  | SubagentVisionFailure
+  | undefined
+> {
   // 非 agent 调用（无 exec.agent）没有可派生子 agent 的父级 ⇒ 回落直连。
   if (exec.agent === undefined) return undefined;
   const started = Date.now();
-  const result: SubagentVisionResult | undefined = await runVisionSubagent(ctx, {
+  const result: SubagentVisionResult | SubagentVisionFailure | undefined = await runVisionSubagent(ctx, {
     provider: options.subagentProvider,
     model: options.subagentModel,
     promptText: prompt,
@@ -241,6 +248,7 @@ async function trySubagentPath(
     signal: exec.signal,
   });
   if (result === undefined) return undefined;
+  if ('reason' in result) return result as SubagentVisionFailure;
   return {
     ok: true,
     task_type: taskType,
