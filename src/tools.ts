@@ -44,7 +44,7 @@ export function describeImageTool(deps: ToolDeps) {
   return defineTool({
     name: 'describe_image',
     description:
-      '描述/理解一张图片(调用商汤 SenseNova 视觉模型,优先派生子 agent 切换到视觉模型,失败自动回落直连并按 sensenova-6.8-flash-lite → deepseek-flash → kimi-k3 故障转移)。'
+      '描述/理解一张图片(调用商汤 SenseNova 视觉模型,默认直连调用,无需其它步骤;按 sensenova-6.8-flash-lite → deepseek-flash → kimi-k3 故障转移,首个成功即返回)。'
       + 'image 为本地图片绝对路径、http(s) URL 或 base64;返回 JSON 文本(ok/task_type/tool_used/confidence/result/metadata.attempts 记录每轮尝试);多图用 describe_images。'
       + 'api key 优先取 credential-ref(默认 SENSENOVA_API_KEY),与 dsh-sensenova-freeapi 共用同一把 key。',
     parameters: {
@@ -84,7 +84,7 @@ export function describeImagesTool(deps: ToolDeps) {
   return defineTool({
     name: 'describe_images',
     description:
-      '同一请求内理解多张图片(调用商汤 SenseNova 视觉模型,优先派生子 agent 切换到视觉模型,失败自动回落直连并按 sensenova-6.8-flash-lite → deepseek-flash → kimi-k3 故障转移)。'
+      '同一请求内理解多张图片(调用商汤 SenseNova 视觉模型,默认直连调用,无需其它步骤;按 sensenova-6.8-flash-lite → deepseek-flash → kimi-k3 故障转移,首个成功即返回)。'
       + 'images 为图片列表,每项可为本地图片绝对路径、http(s) URL 或 base64;返回 JSON 文本(ok/task_type/tool_used/confidence/result/metadata.attempts 记录每轮尝试)。'
       + 'api key 优先取 credential-ref(默认 SENSENOVA_API_KEY),与 dsh-sensenova-freeapi 共用同一把 key。',
     parameters: {
