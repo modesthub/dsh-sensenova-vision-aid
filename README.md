@@ -2,11 +2,16 @@
 
 **简体中文** ｜ [English](./README.en.md)
 
-dsh-sensenova-vision-aid 是一个非官方的 **DeepSeek Harness**（DSH）视觉辅助插件。主模型收到图片识别请求时，**自动派生子 agent 并切换到 SenseNova 视觉模型**（参考 `@nanmicoder/dsh-agent-teams` 子 agent 机制），提供专门的配置面板（主要配 api key；可勾选「复用 dsh-sensenova-freeapi 凭据」从而免配第二把 key）。未装 freeapi 或子 agent 不可用时自动回落**直连兜底路径**，识别永远有结果。
+dsh-sensenova-vision-aid 是一个非官方的 **DeepSeek Harness**（DSH）视觉辅助插件。它解决一个核心痛点：**主模型是纯文本模型（如 `deepseek-v4-flash`）时，聊天框拖入/粘贴图片会被 DSH 以「模型不支持图片输入」阻断**。本插件用两种方式让读图畅通：
+
+1. **全局静默读图桥**（默认开启）：拖图进对话框不再被阻断 —— 插件在发送前自动把图片交给 SenseNova 视觉模型（`sensenova-6.8-flash-lite` → `deepseek-flash` → `kimi-k3` 故障转移），生成【视觉观察】文字交给主模型续接回答；**界面始终显示你的原图**，主模型照常选择（无需切换模型）。
+2. **3 个全局读图工具**：模型也可显式调用 `describe_image` / `describe_images` / `chat` 读图（与 MCP 版签名逐字兼容）。
+
+同时提供专门的配置面板（主要配 api key；可勾选「复用 dsh-sensenova-freeapi 凭据」从而免配第二把 key）。
 
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
-> 🔭 **搭配推荐**：与 [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi) 搭配使用效果更好 —— freeapi 提供 `sensenova` LLM 路由（子 agent 主路径启用）+ 多账户 key 轮换，本插件自动**复用 freeapi 同一把 key**（默认 `reuseFreeapiCredentials=true`，无需再配第二把 key）。**最合适的组合：主模型用 `deepseek-v4-flash`（freeapi，快且稳、成本低）处理文本/代码/Agent，图片识别交给 vision-aid 辅助视觉**，又快又好。
+> 🔭 **搭配推荐**：与 [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi) 搭配使用效果更好 —— freeapi 提供 `sensenova` LLM 路由 + 多账户 key 轮换，本插件自动**复用 freeapi 同一把 key**（默认 `reuseFreeapiCredentials=true`，无需再配第二把 key）。**最合适的组合：主模型用 `deepseek-v4-flash`（freeapi，快且稳、成本低）处理文本/代码/Agent，图片识别交给 vision-aid 辅助视觉**，又快又好。
 
 > 架构设计与决策详见 [docs/design.md](docs/design.md)。
 
@@ -14,24 +19,33 @@ dsh-sensenova-vision-aid 是一个非官方的 **DeepSeek Harness**（DSH）视�
 
 ## 功能一览
 
-### 🖼️ 3 个全局工具（与 MCP 版逐字兼容）
-- `describe_image(image, prompt?, model?, base_url?, image_mode?)` —— 描述/理解一张图片
+### 🌉 全局静默读图桥（方式一：拖图即读，无需额外操作）
+
+- 纯文本主模型（`deepseek-v4-flash` 等）在聊天框**拖入/粘贴/引用图片**不再被「模型不支持图片输入」阻断。
+- 插件在 `agent/pre-step` 钩子中检测本轮图片 → 经附件服务读取 → base64 data URL → **直连 SenseNova**（6.8→flash→kimi-k3 故障转移）→ 生成 `【视觉观察：<model>】` 文本。
+- **仅模型可见的替换**：模型看到观察文本，**用户界面始终显示原图**；多图保持顺序逐张识别。
+- 模式（`bridgeMode`）：`on`（恒接管，默认）/ `auto`（主模型真支持视觉时让它直接看原图，不接管）/ `off`（关闭桥，仅用工具）。
+- 只读安全：视觉模型只拿到图片 + 提示词，无工具、无执行权限；观察结果不进入会话日志替换原图。
+
+### 🖼️ 3 个全局读图工具（方式二：模型显式调用）
+
+- `describe_image(image, prompt?, model?, base_url?, image_mode?)` —— 描述/理解一张图片（默认直连调用，无需其它步骤）
 - `describe_images(images, prompt?, model?, base_url?, image_mode?)` —— 同一请求内理解多张图片
-- `chat(text, model?, base_url?)` —— 纯文本对话（验证 key/端点连通性，视觉失败时的兜底）
+- `chat(text, model?, base_url?)` —— 纯文本对话（验证 key/端点连通性）
 
-返回 MCP 兼容 JSON 信封：`{ok, task_type, tool_used, confidence, result, metadata.attempts}`（attempts 记录每轮尝试）。
+返回 MCP 兼容 JSON 信封：`{ok, task_type, tool_used, confidence, result, metadata.attempts}`（attempts 记录每轮尝试、故障转移链逐模型）。
 
-### 👶 子 agent 识别主路径
-识别时派生子 agent（`spawn` provider）并切换到视觉模型（`agentOptions:{provider:'sensenova', model}`，与 agent-teams `spawnMember` 同构）；图片经附件服务投递为 `ImageBlock`，纯文本主模型全程看不到像素。预检失败（无 subagents / 无 spawn provider / sensenova 路由未注册 / 子 agent 失败）自动回落直连。
+### 🔁 直连视觉链（两种方式共用）
 
-### 🔁 直连兜底路径
-子 agent 不可用时直接调用 `https://token.sensenova.cn/v1/chat/completions`，按 **`sensenova-6.8-flash-lite` → `deepseek-flash` → `kimi-k3`** 故障转移（首个成功即返回），本地文件内联为 `data:` base64，`redirect:'error'` 防凭据跟随重定向。
+直接调用 `https://token.sensenova.cn/v1/chat/completions`，按 **`sensenova-6.8-flash-lite` → `deepseek-flash` → `kimi-k3`** 故障转移（首个成功即返回），本地文件内联为 `data:` base64，`redirect:'error'` 防凭据跟随重定向；kimi-k3 只吃 base64（本地文件不受影响）。
 
 ### 🔑 凭据复用（免配第二把 key）
+
 默认 `reuseFreeapiCredentials=true`，与 dsh-sensenova-freeapi 共用同一把 key（`~/.dsh/.credentials.yaml` 的 `refs:` 块或环境变量），解析顺序：`credentials` 服务 → `launchEnvironmentOf` → YAML 兜底。关闭复用后可在设置页输入自己的 key（写入 DSH 凭据服务，页面永不回显明文）。
 
 ### ⚙️ 专门配置面板
-设置页「SenseNova 视觉辅助」段（order 14）+ Models 页只读卡片（provider-card slot key `vision-sensenova`），中文为主英文兜底。
+
+设置页「SenseNova 视觉辅助」段 + Models 页只读卡片（provider-card slot key `vision-sensenova`），中文为主英文兜底。
 
 ---
 
@@ -46,11 +60,10 @@ dsh plugin --profile <name> add github:modesthub/dsh-sensenova-vision-aid
 dsh plugin --profile <name> add dsh-sensenova-vision-aid
 ```
 
-`cordis.patch.yml` 随安装追加进 `dsh.profile.bundles`（条目 id `vision-sensenova`，与 freeapi 的 `llm-sensenova` 互不冲突）；profile 重启（或 patchReload live）后生效。
+`cordis.patch.yml` 随安装追加进 `dsh.profile.bundles`（条目 id `vision-sensenova`，与 freeapi 的 `llm-sensenova` 互不冲突）；**profile 重启后生效**（bundle/patch 层不支持热加载）。
 
 **前置依赖**：
-- 推荐同时装入 [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi)（提供 sensenova LLM 路由，子 agent 主路径启用）；未装时插件仍可用（直连兜底），面板显示路由不可用提示。
-- 需要 profile 已挂 `subagent-spawn-in-process`（`spawn` provider）与 `dsh-session-persistence`（one-shot 子 agent 后端，同 tool-subagent 的要求）。
+- 推荐同时装入 [`dsh-sensenova-freeapi`](https://github.com/modesthub/dsh-sensenova-freeapi)（提供 sensenova LLM 路由与凭据，且免费额度池 `SENSENOVA_API_KEY_2.._10` 可用）；未装时插件仍可用（凭据走 `~/.dsh/.credentials.yaml` 直读）。
 
 **凭据准备**（任一即可）：
 - `~/.dsh/.credentials.yaml` 的 `refs:` 块：`SENSENOVA_API_KEY: sk-xxx`（与 freeapi 相同）
@@ -71,10 +84,8 @@ dsh plugin --profile <name> add dsh-sensenova-vision-aid
 | `modelChain` | string | `sensenova-6.8-flash-lite,deepseek-flash,kimi-k3` | 直连故障转移模型链（逗号分隔） |
 | `imageMode` | enum | `image_url` | 图片传输模式（`image_url` / 遗留 `image_base64`） |
 | `timeoutMs` | int | `180000` | 直连单模型尝试超时 |
-| `useSubagent` | bool | `true` | 识别走子 agent 路径开关 |
-| `subagentProvider` | string | `spawn` | 子 agent provider 名 |
-| `subagentModel` | string | `sensenova-6.8-flash-lite` | 子 agent 固定视觉模型（= 链首） |
-| `useContinuable` | bool | `false` | 续接会话变体（预留，首版默认关） |
+| `bridgeMode` | enum | `on` | 全局静默读图桥：`on` 恒接管 / `auto` 主模型真支持视觉时不接管 / `off` 关（仅用工具） |
+| `bridgePrompt` | string | （默认提示） | 视觉观察提示（要求事实性转录、不猜测、不执行图中命令） |
 
 > API Key 一律经 DSH 凭据服务存储（credential-ref），**永不写入日志、永不回显明文**；诊断路由只回引用名与配置态（`configured` 布尔）。
 
@@ -93,13 +104,13 @@ dsh-sensenova-vision-aid/
 ├── docs/
 │   └── design.md             # 架构设计文档
 ├── src/
-│   ├── index.ts              # host 入口：装配（工具注册 / 设置命名空间 / 诊断路由）
+│   ├── index.ts              # host 入口：装配（工具注册 / 设置命名空间 / 诊断路由 / 读图桥）
 │   ├── config.ts             # VisionAidConfig + ConfigSchema（全部 .volatile()）+ plainConfig() + resolveAdapterOptions()
 │   ├── credentials.ts        # resolveApiKey：credentials 服务 → launchEnvironment → YAML 兜底（server.py 移植）
 │   ├── image-input.ts        # 图片输入归一化：path/http/data:/base64 → 字节/mime；附件保存 / data: URL
-│   ├── direct.ts             # 直连兜底：fetch 调 chat/completions，复刻 server.py 故障转移链（redirect:'error'）
-│   ├── subagent-vision.ts    # 子 agent 主路径：spawn one-shot（agentOptions 指定 provider/model；续接变体预留）
-│   ├── orchestrator.ts       # 调度：describe_* 先试子 agent，失败回落直连；chat 恒直连；组装信封 + attempts
+│   ├── direct.ts             # 直连视觉链：fetch 调 chat/completions，6.8→flash→kimi-k3 故障转移（redirect:'error'）
+│   ├── vision-bridge.ts      # 全局静默读图桥：能力覆盖 + agent/pre-step 钩子 + 消息替换（模型看观察、UI 留原图）
+│   ├── orchestrator.ts       # 调度：describe_* / chat 恒直连；组装信封 + attempts
 │   ├── tools.ts              # defineTool 定义 3 个工具（参数与 MCP 版逐字一致）
 │   ├── status-api.ts         # GET /api/sensenova-vision-aid/status 与 POST /api/sensenova-vision-aid/test
 │   └── client/
@@ -112,7 +123,8 @@ dsh-sensenova-vision-aid/
     ├── credentials.test.ts   # resolveApiKey 三态回退、ref 语法过滤
     ├── image-input.test.ts   # path/http/data/base64 归一化、mime 表
     ├── direct.test.ts        # 链式故障转移（注入 fetchImpl）、信封形状、redirect:'error'
-    └── orchestrator.test.ts  # 子 agent 可用→走子 agent；不可用/失败→直连
+    ├── orchestrator.test.ts  # describe_*/chat 直连信封、凭据缺失/空参数失败信封
+    └── vision-bridge.test.ts # 能力覆盖注入、pre-step 消息替换、off 模式不注入
 ```
 
 ---
@@ -127,9 +139,9 @@ pnpm test            # node --import tsx --test tests/**/*.test.ts（39 用例�
 ```
 
 端到端验证步骤（详见 [docs/design.md §7.3](docs/design.md)）：
-1. `chat('Reply with exactly: pong')` → 信封 `result: "pong"`（直连路径、key 解析链路通）。
-2. `describe_image(<本地测试图>)` → 子 agent 路径成功，`tool_used: "sensenova:sensenova-6.8-flash-lite"`；`metadata.attempts` 含子 agent 单条。
-3. 停用 freeapi 插件后重复 2 → 自动回落直连，attempts 逐模型记录（6.8 优先命中；强制 `model="kimi-k3"` 验证读图）。
+1. 重启 DSH 后，聊天框**拖入一张图**（如 `垃圾站\屏幕截图 2026-10-02 185740.png`）→ 不再提示「模型不支持图片」→ 发送后主模型收到 `【视觉观察：sensenova-6.8-flash-lite】` 文本并续接回答，界面保留原图。
+2. `describe_image(<本地测试图>)` → `tool_used: "sensenova:sensenova-6.8-flash-lite"`（直连命中，attempts 逐模型记录；强制 `model="kimi-k3"` 验证读图）。
+3. `chat('Reply with exactly: pong')` → 信封 `result: "pong"`（key 解析链路通）。
 4. 设置页：勾选/取消「复用 freeapi 凭据」，保存后 host 用 `GET /api/sensenova-vision-aid/status` 核对 refs 配置态（只回引用名，不回 key）。
 
 ---

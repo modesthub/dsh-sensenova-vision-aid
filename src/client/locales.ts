@@ -35,17 +35,6 @@ export const zh: Record<string, string> = {
   keySaved: '密钥已写入凭据服务 ✓',
   keyClearStaged: '已勾选清除，保存后生效',
 
-  groupRecognition: '识别行为',
-  useSubagent: '图片识别走子 agent 路径',
-  useSubagentHint:
-    '开启后，识别时派生子 agent 并切换到视觉模型（sensenova 路由由 freeapi 提供）；子 agent 不可用时自动回落直连。',
-  subagentModel: '子 agent 视觉模型',
-  subagentModelHint: '子 agent 固定使用的视觉模型（默认链首模型）。',
-  subagentProvider: '子 agent provider',
-  subagentProviderHint: '默认 spawn（subagent-spawn-in-process）。',
-  useContinuable: '续接会话变体（预留）',
-  useContinuableHint: '预留的「识别后追问图片细节」多轮会话开关，首版未实现。',
-
   groupConnection: '连接与兜底',
   apiBase: 'API 地址',
   apiBaseHint: '默认 https://token.sensenova.cn/v1，一般无需修改。',
@@ -72,14 +61,6 @@ export const zh: Record<string, string> = {
   diagModelChain: '模型链',
   diagApiBase: 'API 地址',
   diagImageMode: '图片模式',
-  diagSubagent: '子 agent 路径',
-  diagSubagentAvailable: '可用',
-  diagSubagentUnavailable: '不可用（未装 freeapi 或缺少 spawn provider，将走直连）',
-  diagSpawnProvider: 'spawn provider',
-  diagLlmRoute: 'sensenova LLM 路由',
-  diagLlmRouteResolvable: '可解析',
-  diagLlmRouteMissing: '不可解析（未安装 freeapi，子 agent 路径不可用）',
-  diagDefaultModel: '默认模型',
 
   testConnection: '测试连接',
   testConnectionRunning: '测试中…',
@@ -88,7 +69,7 @@ export const zh: Record<string, string> = {
   testConnectionFail: '连接失败',
   testConnectionFailHint: '原因：{reason}',
   testConnectionIdle: '点「测试连接」用 chat 工具验证 key/端点连通性。',
-  testConnectionHint: '调用 host 的 chat 工具（直连路径，不派生子 agent），验证密钥与端点。',
+  testConnectionHint: '调用 host 的 chat 工具（直连路径），验证密钥与端点。',
 
   readOnly: '当前配置为只读。',
   reset: '重置',
@@ -107,8 +88,6 @@ export const zh: Record<string, string> = {
   cardUnconfiguredHint: '尚未配置 API 密钥，请前往「设置 → SenseNova 视觉辅助」完成配置。',
   cardReuseOn: '复用 freeapi 凭据',
   cardReuseOff: '独立凭据',
-  cardSubagentOn: '子 agent 路径',
-  cardSubagentOff: '直连路径',
   cardModel: '模型链',
 };
 
@@ -140,17 +119,6 @@ export const en: Record<string, string> = {
   keySaved: 'Key written to the credential service ✓',
   keyClearStaged: 'Clear staged — applies on save',
 
-  groupRecognition: 'Recognition behavior',
-  useSubagent: 'Route image recognition through a subagent',
-  useSubagentHint:
-    'When enabled, recognition spawns a subagent switched to a vision model (the sensenova route comes from freeapi); if the subagent path is unavailable it automatically falls back to the direct path.',
-  subagentModel: 'Subagent vision model',
-  subagentModelHint: 'The vision model the subagent always uses (defaults to the first model in the chain).',
-  subagentProvider: 'Subagent provider',
-  subagentProviderHint: 'Defaults to spawn (subagent-spawn-in-process).',
-  useContinuable: 'Continuable variant (reserved)',
-  useContinuableHint: 'Reserved switch for follow-up turns on image details; not implemented in v1.',
-
   groupConnection: 'Connection & fallback',
   apiBase: 'API base URL',
   apiBaseHint: 'Defaults to https://token.sensenova.cn/v1; usually leave as-is.',
@@ -177,14 +145,6 @@ export const en: Record<string, string> = {
   diagModelChain: 'Model chain',
   diagApiBase: 'API base',
   diagImageMode: 'Image mode',
-  diagSubagent: 'Subagent path',
-  diagSubagentAvailable: 'Available',
-  diagSubagentUnavailable: 'Unavailable (freeapi not installed or no spawn provider; will use the direct path)',
-  diagSpawnProvider: 'spawn provider',
-  diagLlmRoute: 'sensenova LLM route',
-  diagLlmRouteResolvable: 'Resolvable',
-  diagLlmRouteMissing: 'Not resolvable (freeapi not installed; subagent path unavailable)',
-  diagDefaultModel: 'Default model',
 
   testConnection: 'Test connection',
   testConnectionRunning: 'Testing…',
@@ -212,7 +172,5 @@ export const en: Record<string, string> = {
   cardUnconfiguredHint: 'No API key configured yet; open “Settings → SenseNova Vision Aid” to finish setup.',
   cardReuseOn: 'Reuse freeapi credentials',
   cardReuseOff: 'Standalone credentials',
-  cardSubagentOn: 'Subagent path',
-  cardSubagentOff: 'Direct path',
   cardModel: 'Model chain',
 };

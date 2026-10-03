@@ -4,7 +4,6 @@
  *
  * 与 dsh-sensenova-freeapi 的 SenseNovaSettingsController 同构，但只保留本插件
  * 所需的最小面：reuseFreeapiCredentials、keyRef、apiBase、modelChain、imageMode、
- * timeoutMs、useSubagent、subagentProvider、subagentModel、useContinuable；
  * API key 一律经 credentials 域写入（credential-ref），页面不回显明文。
  */
 
@@ -22,16 +21,12 @@ export const DEFAULT_MODEL_CHAIN = 'sensenova-6.8-flash-lite,deepseek-flash,kimi
 /** 默认直连单模型超时（毫秒）。 */
 export const DEFAULT_TIMEOUT_MS = 180_000;
 /** 子 agent 固定视觉模型 = 链首。 */
-export const DEFAULT_SUBAGENT_MODEL = 'sensenova-6.8-flash-lite';
 /** 子 agent provider 默认值。 */
-export const DEFAULT_SUBAGENT_PROVIDER = 'spawn';
 
 /** 「复用 freeapi 凭据」的缺省值（开 = 免配第二把 key）。 */
 export const DEFAULT_REUSE_FREEAPI = true;
 /** 识别走子 agent 路径的缺省值。 */
-export const DEFAULT_USE_SUBAGENT = true;
 /** 续接会话变体（预留）的缺省值。 */
-export const DEFAULT_USE_CONTINUABLE = false;
 
 /** 免费额度池可用的 ref 后缀（SENSENOVA_API_KEY_2 .. _10）。 */
 export const KEY_REF_POOL_MAX = 10;
@@ -132,11 +127,7 @@ export type FieldName =
   | 'apiBase'
   | 'modelChain'
   | 'imageMode'
-  | 'timeoutMs'
-  | 'useSubagent'
-  | 'subagentProvider'
-  | 'subagentModel'
-  | 'useContinuable';
+  | 'timeoutMs';
 
 /** 设置命名空间中的用户配置形状（与 host 侧 VisionAidConfig 对齐）。 */
 export interface VisionAidConfig {
@@ -146,10 +137,6 @@ export interface VisionAidConfig {
   modelChain?: string;
   imageMode?: 'image_url' | 'image_base64';
   timeoutMs?: number;
-  useSubagent?: boolean;
-  subagentProvider?: string;
-  subagentModel?: string;
-  useContinuable?: boolean;
 }
 
 /** 页面渲染用的设置快照（稳定引用，变更时整体替换）。 */
@@ -182,14 +169,6 @@ export interface SettingsState {
   imageModeDraft: 'image_url' | 'image_base64';
   timeoutMs: number;
   timeoutMsDraft: string;
-  useSubagent: boolean;
-  useSubagentDraft: boolean;
-  subagentProvider: string;
-  subagentProviderDraft: string;
-  subagentModel: string;
-  subagentModelDraft: string;
-  useContinuable: boolean;
-  useContinuableDraft: boolean;
 
   /** 只读诊断（host 状态路由，不参与 dirty/保存）。 */
   diagnostics: DiagnosticsState;
@@ -224,12 +203,6 @@ export interface DiagnosticsView {
   modelChain: string;
   apiBase: string;
   imageMode: string;
-  subagent: {
-    serviceAvailable: boolean;
-    spawnProvider: boolean;
-    llmRouteResolvable: boolean;
-    defaultModel: string;
-  };
 }
 
 export const IDLE_DIAGNOSTICS_STATE: DiagnosticsState = { status: 'idle' };
@@ -251,9 +224,6 @@ export function normalizeDiagnosticsState(raw: unknown): DiagnosticsState {
     if (typeof row.name !== 'string' || row.name === '') continue;
     refs.push({ name: row.name, configured: row.configured === true });
   }
-  const rawSubagent = typeof source.subagent === 'object' && source.subagent !== null
-    ? (source.subagent as Record<string, unknown>)
-    : {};
   return {
     status: 'ready',
     snapshot: {
@@ -262,12 +232,6 @@ export function normalizeDiagnosticsState(raw: unknown): DiagnosticsState {
       modelChain: typeof source.modelChain === 'string' ? source.modelChain : '',
       apiBase: typeof source.apiBase === 'string' ? source.apiBase : '',
       imageMode: typeof source.imageMode === 'string' ? source.imageMode : '',
-      subagent: {
-        serviceAvailable: rawSubagent.serviceAvailable === true,
-        spawnProvider: rawSubagent.spawnProvider === true,
-        llmRouteResolvable: rawSubagent.llmRouteResolvable === true,
-        defaultModel: typeof rawSubagent.defaultModel === 'string' ? rawSubagent.defaultModel : '',
-      },
     },
   };
 }
@@ -333,10 +297,6 @@ export class VisionAidSettingsController {
   private stagedModelChain: string | undefined;
   private stagedImageMode: 'image_url' | 'image_base64' | undefined;
   private stagedTimeoutMs: string | undefined;
-  private stagedUseSubagent: boolean | undefined;
-  private stagedSubagentProvider: string | undefined;
-  private stagedSubagentModel: string | undefined;
-  private stagedUseContinuable: boolean | undefined;
 
   private credentialStates = new Map<string, CredentialView>();
   private diagnostics: DiagnosticsState = { ...IDLE_DIAGNOSTICS_STATE };
@@ -398,14 +358,6 @@ export class VisionAidSettingsController {
     const modelChain = modelChainOf(this.sectionValue('modelChain'));
     const imageMode = this.sectionValue('imageMode') === 'image_base64' ? 'image_base64' : 'image_url';
     const timeoutMs = normalizeTimeoutMs(this.sectionValue('timeoutMs'));
-    const useSubagent = normalizeBool(this.sectionValue('useSubagent'), DEFAULT_USE_SUBAGENT);
-    const subagentProvider = typeof this.sectionValue('subagentProvider') === 'string'
-      ? (this.sectionValue('subagentProvider') as string)
-      : DEFAULT_SUBAGENT_PROVIDER;
-    const subagentModel = typeof this.sectionValue('subagentModel') === 'string'
-      ? (this.sectionValue('subagentModel') as string)
-      : DEFAULT_SUBAGENT_MODEL;
-    const useContinuable = normalizeBool(this.sectionValue('useContinuable'), DEFAULT_USE_CONTINUABLE);
 
     const dirty =
       this.stagedReuse !== undefined ||
@@ -415,11 +367,7 @@ export class VisionAidSettingsController {
       this.stagedApiBase !== undefined ||
       this.stagedModelChain !== undefined ||
       this.stagedImageMode !== undefined ||
-      this.stagedTimeoutMs !== undefined ||
-      this.stagedUseSubagent !== undefined ||
-      this.stagedSubagentProvider !== undefined ||
-      this.stagedSubagentModel !== undefined ||
-      this.stagedUseContinuable !== undefined;
+      this.stagedTimeoutMs !== undefined;
 
     return {
       available: snapshot.status === 'ready',
@@ -444,14 +392,6 @@ export class VisionAidSettingsController {
       imageModeDraft: this.stagedImageMode ?? imageMode,
       timeoutMs,
       timeoutMsDraft: this.stagedTimeoutMs ?? String(timeoutMs),
-      useSubagent,
-      useSubagentDraft: this.stagedUseSubagent ?? useSubagent,
-      subagentProvider,
-      subagentProviderDraft: this.stagedSubagentProvider ?? subagentProvider,
-      subagentModel,
-      subagentModelDraft: this.stagedSubagentModel ?? subagentModel,
-      useContinuable,
-      useContinuableDraft: this.stagedUseContinuable ?? useContinuable,
       diagnostics: this.diagnostics,
       test: this.test,
       dirty,
@@ -470,10 +410,6 @@ export class VisionAidSettingsController {
     else if (field === 'modelChain') this.stagedModelChain = text;
     else if (field === 'imageMode') this.stagedImageMode = text === 'image_base64' ? 'image_base64' : 'image_url';
     else if (field === 'timeoutMs') this.stagedTimeoutMs = text;
-    else if (field === 'useSubagent') this.stagedUseSubagent = text === 'true';
-    else if (field === 'subagentProvider') this.stagedSubagentProvider = text;
-    else if (field === 'subagentModel') this.stagedSubagentModel = text;
-    else if (field === 'useContinuable') this.stagedUseContinuable = text === 'true';
     this.failed = false;
     this.publish();
   }
@@ -481,20 +417,6 @@ export class VisionAidSettingsController {
   /** 复用开关（布尔专用编辑入口）。 */
   setReuseFreeapi(on: boolean): void {
     this.stagedReuse = on;
-    this.failed = false;
-    this.publish();
-  }
-
-  /** 子 agent 开关。 */
-  setUseSubagent(on: boolean): void {
-    this.stagedUseSubagent = on;
-    this.failed = false;
-    this.publish();
-  }
-
-  /** 续接变体开关（预留）。 */
-  setUseContinuable(on: boolean): void {
-    this.stagedUseContinuable = on;
     this.failed = false;
     this.publish();
   }
@@ -525,10 +447,6 @@ export class VisionAidSettingsController {
     this.stagedModelChain = undefined;
     this.stagedImageMode = undefined;
     this.stagedTimeoutMs = undefined;
-    this.stagedUseSubagent = undefined;
-    this.stagedSubagentProvider = undefined;
-    this.stagedSubagentModel = undefined;
-    this.stagedUseContinuable = undefined;
     this.failed = false;
     this.keyWriteResult = 'idle';
     this.publish();
@@ -735,22 +653,6 @@ export class VisionAidSettingsController {
       }
       if (this.stagedTimeoutMs !== undefined) {
         await this.scope.set('timeoutMs', normalizeTimeoutMs(this.stagedTimeoutMs));
-      }
-      if (this.stagedUseSubagent !== undefined) {
-        await this.scope.set('useSubagent', this.stagedUseSubagent);
-      }
-      if (this.stagedSubagentProvider !== undefined) {
-        const value = this.stagedSubagentProvider.trim();
-        if (value === '') await this.scope.unset('subagentProvider');
-        else await this.scope.set('subagentProvider', value);
-      }
-      if (this.stagedSubagentModel !== undefined) {
-        const value = this.stagedSubagentModel.trim();
-        if (value === '') await this.scope.unset('subagentModel');
-        else await this.scope.set('subagentModel', value);
-      }
-      if (this.stagedUseContinuable !== undefined) {
-        await this.scope.set('useContinuable', this.stagedUseContinuable);
       }
     } catch {
       landed = false;

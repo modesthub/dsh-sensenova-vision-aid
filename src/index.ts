@@ -11,8 +11,10 @@
  * 关键设计决策（详见 docs/design.md）：
  * - **不调用** `ctx.llm.registerAdapter` / `registerConfigurableProviders` ——
  *   避免与 dsh-sensenova-freeapi 的 sensenova 路由 DUPLICATE_ADAPTER /
- *   DUPLICATE_DIRECTORY 冲突；子 agent 主路径依赖 freeapi 提供路由，未装时
- *   自动回落直连。
+ *   DUPLICATE_DIRECTORY 冲突；视觉识别恒走直连（6.8→flash→kimi-k3）。
+ * - **全局静默读图桥**：`installVisionBridge` 包装 `ctx.llm.resolveModelInfo`
+ *   注入 image 模态（绕过发送前图片能力校验），并在 `agent/pre-step` 把图片
+ *   替换为视觉观察文本 —— 纯文本主模型拖图不再被阻断。
  * - 配置热更新：patch 变更 ⇒ app-boot 重组 ⇒ 本入口被重新 apply，`config` 始终
  *   是最新值；入口先 `plainConfig()` 解包 volatile 引用。
  * - 工具注册遵循 DSH 约定：`ctx.tools.register` 返回 disposer，由 cordis fiber

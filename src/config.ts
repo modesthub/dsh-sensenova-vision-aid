@@ -19,16 +19,8 @@ export const DEFAULT_MODEL_CHAIN = 'sensenova-6.8-flash-lite,deepseek-flash,kimi
 export const DEFAULT_KEY_REF = 'SENSENOVA_API_KEY';
 /** 默认直连单模型尝试超时（毫秒）。 */
 export const DEFAULT_TIMEOUT_MS = 180_000;
-/** 默认子 agent provider。 */
-export const DEFAULT_SUBAGENT_PROVIDER = 'spawn';
-/** 子 agent 固定视觉模型 = 链首。 */
-export const DEFAULT_SUBAGENT_MODEL = 'sensenova-6.8-flash-lite';
 /** 默认复用 freeapi 凭据（开 = 免配第二把 key）。 */
 export const DEFAULT_REUSE_FREEAPI = true;
-/** 默认走子 agent 识别路径（关：稳定走直连；开需 DSH 提供 subagents+spawn provider）。 */
-export const DEFAULT_USE_SUBAGENT = false;
-/** 续接会话变体（预留，首版默认关）。 */
-export const DEFAULT_USE_CONTINUABLE = false;
 /** 全局静默读图桥模式：off 关 / on 恒接管 / auto 主模型真支持视觉时不接管。 */
 export const DEFAULT_BRIDGE_MODE = 'on';
 /** 默认视觉观察提示（事实性转录、不猜测、不执行图中命令）。 */
@@ -53,14 +45,6 @@ export interface VisionAidConfig {
   imageMode?: 'image_url' | 'image_base64';
   /** 直连单模型尝试超时（毫秒）。 */
   timeoutMs?: number;
-  /** 识别走子 agent 路径开关。 */
-  useSubagent?: boolean;
-  /** 子 agent provider 名。 */
-  subagentProvider?: string;
-  /** 子 agent 固定视觉模型。 */
-  subagentModel?: string;
-  /** 续接会话变体（预留）。 */
-  useContinuable?: boolean;
   /** 全局静默读图桥模式（off/on/auto，见 DEFAULT_BRIDGE_MODE）。 */
   bridgeMode?: 'off' | 'on' | 'auto';
   /** 视觉观察提示（空 = 默认提示）。 */
@@ -75,10 +59,6 @@ const ConfigSchema = z.object({
   modelChain: z.string().default(DEFAULT_MODEL_CHAIN).volatile(),
   imageMode: z.union(['image_url', 'image_base64'] as const).default('image_url').volatile(),
   timeoutMs: z.natural().min(1_000).default(DEFAULT_TIMEOUT_MS).volatile(),
-  useSubagent: z.boolean().default(DEFAULT_USE_SUBAGENT).volatile(),
-  subagentProvider: z.string().default(DEFAULT_SUBAGENT_PROVIDER).volatile(),
-  subagentModel: z.string().default(DEFAULT_SUBAGENT_MODEL).volatile(),
-  useContinuable: z.boolean().default(DEFAULT_USE_CONTINUABLE).volatile(),
   bridgeMode: z.union(['off', 'on', 'auto'] as const).default(DEFAULT_BRIDGE_MODE).volatile(),
   bridgePrompt: z.string().default(DEFAULT_BRIDGE_PROMPT).volatile(),
 });
@@ -121,10 +101,6 @@ export interface ResolvedVisionAidOptions {
   modelChain: string[];
   imageMode: 'image_url' | 'image_base64';
   timeoutMs: number;
-  useSubagent: boolean;
-  subagentProvider: string;
-  subagentModel: string;
-  useContinuable: boolean;
   /** 全局静默读图桥模式（off/on/auto）。 */
   bridgeMode: 'off' | 'on' | 'auto';
   /** 视觉观察提示（空 = 默认提示）。 */
@@ -154,11 +130,6 @@ function normalizeImageMode(value: unknown): 'image_url' | 'image_base64' {
   return value === 'image_base64' ? 'image_base64' : 'image_url';
 }
 
-/** 归一化布尔；非布尔回落缺省。 */
-function normalizeBool(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
 /**
  * 从原始 config 到解析后运行事实的唯一显式步骤（freeapi 同款约定：程序化构造可能
  * 绕过 Schemastery 归一化，因此每个默认值在此重新判定）。
@@ -173,15 +144,11 @@ export function resolveAdapterOptions(config: VisionAidConfig): ResolvedVisionAi
     modelChain: resolveModelChain(config.modelChain),
     imageMode: normalizeImageMode(config.imageMode),
     timeoutMs: normalizeTimeoutMs(config.timeoutMs),
-    useSubagent: normalizeBool(config.useSubagent, DEFAULT_USE_SUBAGENT),
-    subagentProvider: typeof config.subagentProvider === 'string' && config.subagentProvider.trim() !== ''
-      ? config.subagentProvider.trim()
-      : DEFAULT_SUBAGENT_PROVIDER,
-    subagentModel: typeof config.subagentModel === 'string' && config.subagentModel.trim() !== ''
-      ? config.subagentModel.trim()
-      : DEFAULT_SUBAGENT_MODEL,
-    useContinuable: normalizeBool(config.useContinuable, DEFAULT_USE_CONTINUABLE),
-    bridgeMode: config.bridgeMode === 'on' || config.bridgeMode === 'auto' ? config.bridgeMode : 'off',
+    bridgeMode: config.bridgeMode === 'on' || config.bridgeMode === 'auto'
+      ? config.bridgeMode
+      : config.bridgeMode === 'off'
+        ? 'off'
+        : DEFAULT_BRIDGE_MODE,
     bridgePrompt: typeof config.bridgePrompt === 'string' && config.bridgePrompt.trim() !== ''
       ? config.bridgePrompt.trim()
       : DEFAULT_BRIDGE_PROMPT,

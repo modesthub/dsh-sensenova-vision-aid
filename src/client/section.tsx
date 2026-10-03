@@ -38,8 +38,6 @@ export interface VisionAidSectionProps {
   save: () => void;
   discard: () => void;
   setReuseFreeapi: (on: boolean) => void;
-  setUseSubagent: (on: boolean) => void;
-  setUseContinuable: (on: boolean) => void;
   editKeyDraft: (text: string) => void;
   toggleClearStaged: () => void;
   refreshDiagnostics: () => void;
@@ -213,73 +211,7 @@ function CredentialsCard(props: {
   );
 }
 
-/** 识别行为区（分组 3）：子 agent 开关与模型。 */
-function RecognitionCard(props: {
-  t: TranslateFn;
-  state: SettingsState;
-  disabled: boolean;
-  edit: (field: FieldName, text: string) => void;
-  setUseSubagent: (on: boolean) => void;
-  setUseContinuable: (on: boolean) => void;
-}): JSX.Element {
-  const { t, state } = props;
-  return (
-    <div className="sn-card">
-      <ToggleField
-        t={t}
-        id="sn-vision-subagent"
-        labelKey="useSubagent"
-        hintKey="useSubagentHint"
-        checked={state.useSubagentDraft}
-        disabled={props.disabled}
-        onChange={props.setUseSubagent}
-      />
-      <div className="sn-models">
-        <div className="sn-field">
-          <label className="sn-label" htmlFor="sn-vision-subagent-model">
-            {t('subagentModel')}
-          </label>
-          <input
-            id="sn-vision-subagent-model"
-            className="sn-input"
-            type="text"
-            value={state.subagentModelDraft}
-            disabled={props.disabled}
-            spellCheck={false}
-            onChange={(event: ChangeEventLike) => props.edit('subagentModel', event.target.value)}
-          />
-          <p className="sn-hint">{t('subagentModelHint')}</p>
-        </div>
-        <div className="sn-field">
-          <label className="sn-label" htmlFor="sn-vision-subagent-provider">
-            {t('subagentProvider')}
-          </label>
-          <input
-            id="sn-vision-subagent-provider"
-            className="sn-input"
-            type="text"
-            value={state.subagentProviderDraft}
-            disabled={props.disabled}
-            spellCheck={false}
-            onChange={(event: ChangeEventLike) => props.edit('subagentProvider', event.target.value)}
-          />
-          <p className="sn-hint">{t('subagentProviderHint')}</p>
-        </div>
-      </div>
-      <ToggleField
-        t={t}
-        id="sn-vision-continuable"
-        labelKey="useContinuable"
-        hintKey="useContinuableHint"
-        checked={state.useContinuableDraft}
-        disabled={props.disabled}
-        onChange={props.setUseContinuable}
-      />
-    </div>
-  );
-}
-
-/** 连接与兜底区（分组 4，高级折叠卡）：apiBase / modelChain / imageMode / timeoutMs。 */
+/** 连接与兜底区（分组 3，高级折叠卡）：apiBase / modelChain / imageMode / timeoutMs。 */
 function ConnectionAdvancedCard(props: {
   t: TranslateFn;
   state: SettingsState;
@@ -478,15 +410,6 @@ function DiagnosticsPanel(props: {
           <span className="sn-labelSmall">{props.t('diagModelChain')}</span>
           <p className="sn-hint sn-mono">{snapshot.modelChain}</p>
         </div>
-        <div className="sn-field">
-          <span className="sn-labelSmall">{props.t('diagSubagent')}</span>
-          <p className="sn-hint">
-            {snapshot.subagent.serviceAvailable && snapshot.subagent.spawnProvider && snapshot.subagent.llmRouteResolvable
-              ? props.t('diagSubagentAvailable')
-              : props.t('diagSubagentUnavailable')}
-            {snapshot.subagent.defaultModel !== '' ? ` — ${props.t('diagDefaultModel')}: ${snapshot.subagent.defaultModel}` : ''}
-          </p>
-        </div>
       </div>
     );
   }
@@ -552,18 +475,7 @@ export function VisionAidSection(props: VisionAidSectionProps): JSX.Element {
         toggleClearStaged={props.toggleClearStaged}
       />
 
-      {/* 分组 3：识别行为 */}
-      <SectionHeading text={t('groupRecognition')} />
-      <RecognitionCard
-        t={t}
-        state={state}
-        disabled={disabled}
-        edit={props.edit}
-        setUseSubagent={props.setUseSubagent}
-        setUseContinuable={props.setUseContinuable}
-      />
-
-      {/* 分组 4：连接与兜底（高级折叠卡） */}
+      {/* 分组 3：连接与兜底（高级折叠卡） */}
       <SectionHeading text={t('groupConnection')} />
       <ConnectionAdvancedCard t={t} state={state} disabled={disabled} edit={props.edit} />
 

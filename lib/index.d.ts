@@ -15,14 +15,6 @@ interface VisionAidConfig {
   imageMode?: 'image_url' | 'image_base64';
   /** 直连单模型尝试超时（毫秒）。 */
   timeoutMs?: number;
-  /** 识别走子 agent 路径开关。 */
-  useSubagent?: boolean;
-  /** 子 agent provider 名。 */
-  subagentProvider?: string;
-  /** 子 agent 固定视觉模型。 */
-  subagentModel?: string;
-  /** 续接会话变体（预留）。 */
-  useContinuable?: boolean;
   /** 全局静默读图桥模式（off/on/auto，见 DEFAULT_BRIDGE_MODE）。 */
   bridgeMode?: 'off' | 'on' | 'auto';
   /** 视觉观察提示（空 = 默认提示）。 */
@@ -49,10 +41,6 @@ interface ResolvedVisionAidOptions {
   modelChain: string[];
   imageMode: 'image_url' | 'image_base64';
   timeoutMs: number;
-  useSubagent: boolean;
-  subagentProvider: string;
-  subagentModel: string;
-  useContinuable: boolean;
   /** 全局静默读图桥模式（off/on/auto）。 */
   bridgeMode: 'off' | 'on' | 'auto';
   /** 视觉观察提示（空 = 默认提示）。 */

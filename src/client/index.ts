@@ -173,8 +173,6 @@ function applyClientSurfaces(ctx: ClientContextLike, credentials: CredentialsFac
     save: () => void controller.save(),
     discard: () => controller.discard(),
     setReuseFreeapi: (on: boolean) => controller.setReuseFreeapi(on),
-    setUseSubagent: (on: boolean) => controller.setUseSubagent(on),
-    setUseContinuable: (on: boolean) => controller.setUseContinuable(on),
     editKeyDraft: (text: string) => controller.editKeyDraft(text),
     toggleClearStaged: () => controller.toggleClearStaged(),
     refreshDiagnostics: () => void controller.refreshDiagnostics(),

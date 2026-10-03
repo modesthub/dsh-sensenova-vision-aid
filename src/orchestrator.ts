@@ -1,6 +1,7 @@
 /**
- * 调度层：describe_* 先试子 agent 路径（配置开启且有图时），失败/不可用回落直连；
- * chat 恒走直连。组装 MCP 兼容信封（`{ok, task_type, tool_used, confidence, result,
+ * 调度层：describe_* 与 chat 恒走直连（sensenova-6.8-flash-lite →
+ * deepseek-flash → kimi-k3 故障转移，凭据与工具路径一致）。
+ * 组装 MCP 兼容信封（`{ok, task_type, tool_used, confidence, result,
  * metadata.attempts}`）并返回 **JSON 字符串**（与 MCP 版一致，模型收到的是文本）。
  *
  * 信封字段逐字对齐 server.py：
@@ -8,10 +9,7 @@
  *   describe_images 加 `image_count`、task_type=image_reasoning_multi；chat 无 confidence。
  * - 失败：{ok:false, task_type, error}。
  *
- * attempts 语义：
- * - 直连路径：每个模型一次尝试（status ok|failed, error?, latency_ms）；
- * - 子 agent 路径：单条 `{model: subagentModel, status:'ok'|'failed', latency_ms}`；
- *   子 agent 失败后回落直连时，attempts 先记子 agent 失败再追加直连各模型。
+ * attempts 语义：直连路径每个模型一次尝试（status ok|failed, error?, latency_ms）。
  *
  * @module dsh-sensenova-vision-aid/orchestrator
  */
@@ -22,7 +20,6 @@ import type { ResolvedVisionAidOptions } from './config.ts';
 import { resolveApiKey } from './credentials.ts';
 import { normalizeImageInput, toDataUrl, type NormalizedImage } from './image-input.ts';
 import { envelopeFail, imagePart, runChain } from './direct.ts';
-import { runVisionSubagent, type SubagentVisionFailure, type SubagentVisionResult } from './subagent-vision.ts';
 /** 一次 `describe_*` 的输入参数（与 MCP 工具签名一致）。 */
 export interface DescribeArgs {
   image?: string;
@@ -39,9 +36,6 @@ export interface ChatArgs {
   model?: string;
   base_url?: string;
 }
-
-/** 信封 task_type（单图 / 多图 / chat）。 */
-type TaskKind = 'image_reasoning' | 'image_reasoning_multi' | 'chat';
 
 /** 从工具参数提取并归一化图片数组（describe_image 单图包装为数组）。 */
 export async function normalizeImagesOf(args: DescribeArgs): Promise<NormalizedImage[]> {
@@ -83,7 +77,7 @@ function resolveOverrides(args: { model?: string; base_url?: string; image_mode?
  */
 export async function describe(
   ctx: Context,
-  exec: ToolRunContext,
+  _exec: ToolRunContext,
   args: DescribeArgs,
   options: ResolvedVisionAidOptions,
   taskType: 'image_reasoning' | 'image_reasoning_multi',
@@ -105,23 +99,7 @@ export async function describe(
     return JSON.stringify(envelopeFail(taskType, message));
   }
 
-  // 子 agent 主路径：配置开启、有图且存在真实调用 agent 时先试。
-  if (options.useSubagent && images.length > 0) {
-    const subagentStarted = Date.now();
-    const viaSubagent = await trySubagentPath(ctx, exec, options, images, prompt, taskType);
-    if (viaSubagent !== undefined && 'result' in viaSubagent) return JSON.stringify(viaSubagent);
-    const failure = viaSubagent !== undefined && 'reason' in viaSubagent
-      ? (viaSubagent as SubagentVisionFailure).reason
-      : 'no parent agent for subagent spawn';
-    attempts.push({
-      model: options.subagentModel,
-      status: 'failed',
-      latency_ms: Date.now() - subagentStarted,
-      error: failure,
-    });
-  }
-
-  // 直连兜底。
+  // 直连路径（唯一路径：sensenova-6.8-flash-lite → deepseek-flash → kimi-k3）。
   try {
     const apiKey = await resolveApiKey(ctx, options.keyRef);
     if (apiKey === undefined) {
@@ -221,49 +199,6 @@ export async function chat(
     const message = error instanceof Error ? error.message : String(error);
     return JSON.stringify(envelopeFail('chat', message));
   }
-}
-
-/** 子 agent 主路径尝试：成功返回成功信封对象，失败返回失败原因对象，无父 agent 返回 undefined。 */
-async function trySubagentPath(
-  ctx: Context,
-  exec: ToolRunContext,
-  options: ResolvedVisionAidOptions,
-  images: NormalizedImage[],
-  prompt: string,
-  taskType: 'image_reasoning' | 'image_reasoning_multi',
-): Promise<
-  | { ok: true; task_type: TaskKind; tool_used: string; confidence: string; result: string; image_count?: number; metadata: Record<string, unknown> }
-  | SubagentVisionFailure
-  | undefined
-> {
-  // 非 agent 调用（无 exec.agent）没有可派生子 agent 的父级 ⇒ 回落直连。
-  if (exec.agent === undefined) return undefined;
-  const started = Date.now();
-  const result: SubagentVisionResult | SubagentVisionFailure | undefined = await runVisionSubagent(ctx, {
-    provider: options.subagentProvider,
-    model: options.subagentModel,
-    promptText: prompt,
-    images,
-    parent: exec.agent,
-    signal: exec.signal,
-  });
-  if (result === undefined) return undefined;
-  if ('reason' in result) return result as SubagentVisionFailure;
-  return {
-    ok: true,
-    task_type: taskType,
-    tool_used: `sensenova:${result.model}`,
-    confidence: 'high',
-    ...taskType === 'image_reasoning_multi' ? { image_count: images.length } : {},
-    result: result.text,
-    metadata: {
-      model: result.model,
-      base_url: options.apiBase,
-      image_mode: options.imageMode,
-      total_ms: Date.now() - started,
-      attempts: [{ model: result.model, status: 'ok', latency_ms: result.latencyMs }],
-    },
-  };
 }
 
 /** 可选注入的 fetch（测试用）：ctx 无 'fetch' 服务时回落全局 fetch。 */

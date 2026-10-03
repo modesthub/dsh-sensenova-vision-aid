@@ -54,8 +54,6 @@ export function VisionAidProviderCard(props: VisionAidCardProps): JSX.Element {
         <p className="sn-hint">
           {state.reuseFreeapiCredentials ? t('cardReuseOn') : t('cardReuseOff')}
           {' · '}
-          {state.useSubagent ? t('cardSubagentOn') : t('cardSubagentOff')}
-          {' · '}
           {t('cardModel')}: {state.modelChain}
         </p>
       ) : null}

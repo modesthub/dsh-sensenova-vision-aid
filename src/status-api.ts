@@ -3,12 +3,11 @@
  * （POST /api/sensenova-vision-aid/test）。
  *
  * status：`{ serviceAvailable, refs:[{name, configured}], modelChain, apiBase,
- * imageMode, subagent:{ serviceAvailable, spawnProvider, llmRouteResolvable,
- * defaultModel } }`。**绝不抛**：缺失即降级（与 freeapi error-log 路由同款约定）；
+ * imageMode }`。**绝不抛**：缺失即降级（与 freeapi error-log 路由同款约定）；
  * 只回引用名与配置态，绝不含密钥值。
  *
  * test：POST body `{"prompt":"Reply with exactly: pong"}`，host 侧跑 chat 工具
- * （直连路径，不派生子 agent），返回 `{"ok":true,"model":"<使用的模型>"}` 或
+ * （直连路径），返回 `{"ok":true,"model":"<使用的模型>"}` 或
  * `{"ok":false,"error":"<原因>"}`。
  *
  * @module dsh-sensenova-vision-aid/status-api
@@ -23,14 +22,6 @@ import { chat as runChat } from './orchestrator.ts';
 export const STATUS_ROUTE = '/api/sensenova-vision-aid/status';
 export const TEST_ROUTE = '/api/sensenova-vision-aid/test';
 
-/** 子 agent 路径可用性的运行时探测（只读诊断）。 */
-export interface SubagentAvailability {
-  serviceAvailable: boolean;
-  spawnProvider: boolean;
-  llmRouteResolvable: boolean;
-  defaultModel: string;
-}
-
 /** status 路由的响应。 */
 export interface StatusSnapshot {
   serviceAvailable: boolean;
@@ -38,25 +29,6 @@ export interface StatusSnapshot {
   modelChain: string;
   apiBase: string;
   imageMode: string;
-  subagent: SubagentAvailability;
-}
-
-/** 探测 sensenova 路由是否可解析（freeapi 未装 / 路由缺失 ⇒ false，绝不抛）。 */
-async function probeLlmRoute(
-  ctx: Context,
-  model: string,
-  signal?: AbortSignal,
-): Promise<boolean> {
-  const llm = ctx.get('llm') as
-    | { resolveCallConfig?: (config: { provider: string; model: string }, signal?: AbortSignal) => Promise<unknown> }
-    | undefined;
-  if (llm?.resolveCallConfig === undefined) return false;
-  try {
-    await llm.resolveCallConfig({ provider: 'sensenova', model }, signal);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** 组装 status 快照（绝不抛；缺失服务即降级）。 */
@@ -65,11 +37,6 @@ export async function buildStatusSnapshot(
   options: () => ResolvedVisionAidOptions,
 ): Promise<StatusSnapshot> {
   const resolved = options();
-  const subagents = ctx.get('subagents') as
-    | { getProvider?: (name: string) => unknown }
-    | undefined;
-  const spawnProvider = subagents?.getProvider?.(resolved.subagentProvider) !== undefined;
-  const llmRouteResolvable = await probeLlmRoute(ctx, resolved.subagentModel);
 
   const refs: Array<{ name: string; configured: boolean }> = [];
   try {
@@ -85,12 +52,6 @@ export async function buildStatusSnapshot(
     modelChain: resolved.modelChain.join(','),
     apiBase: resolved.apiBase,
     imageMode: resolved.imageMode,
-    subagent: {
-      serviceAvailable: spawnProvider && llmRouteResolvable,
-      spawnProvider,
-      llmRouteResolvable,
-      defaultModel: resolved.subagentModel,
-    },
   };
 }
 

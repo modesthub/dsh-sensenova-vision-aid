@@ -93,10 +93,7 @@ test('resolveAdapterOptions: 默认值齐全', () => {
   assert.deepEqual(options.modelChain, ['sensenova-6.8-flash-lite', 'deepseek-flash', 'kimi-k3']);
   assert.equal(options.imageMode, 'image_url');
   assert.equal(options.timeoutMs, 180_000);
-  assert.equal(options.useSubagent, false);
-  assert.equal(options.subagentProvider, 'spawn');
-  assert.equal(options.subagentModel, 'sensenova-6.8-flash-lite');
-  assert.equal(options.useContinuable, false);
+  assert.equal(options.bridgeMode, 'on');
 });
 
 test('resolveAdapterOptions: 用户覆盖与非法值归一化', () => {
@@ -106,16 +103,12 @@ test('resolveAdapterOptions: 用户覆盖与非法值归一化', () => {
     modelChain: 'kimi-k3, deepseek-flash, kimi-k3',
     imageMode: 'image_base64',
     timeoutMs: 500,
-    useSubagent: false,
-    subagentModel: 'deepseek-flash',
   });
   assert.equal(options.keyRef, 'SENSENOVA_API_KEY_2');
   assert.equal(options.apiBase, 'https://x.example/v1');
   assert.deepEqual(options.modelChain, ['kimi-k3', 'deepseek-flash']);
   assert.equal(options.imageMode, 'image_base64');
   assert.equal(options.timeoutMs, 180_000); // 低于 1000 回退默认
-  assert.equal(options.useSubagent, false);
-  assert.equal(options.subagentModel, 'deepseek-flash');
 });
 
 test('resolveModelChain: 空输入回落默认链', () => {
