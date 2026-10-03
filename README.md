@@ -89,6 +89,20 @@ dsh plugin --profile <name> add dsh-sensenova-vision-aid
 
 > API Key 一律经 DSH 凭据服务存储（credential-ref），**永不写入日志、永不回显明文**；诊断路由只回引用名与配置态（`configured` 布尔）。
 
+### 配置界面示意
+
+**已安装 dsh-sensenova-freeapi 的用户**：在「设置 → SenseNova 视觉辅助」里**勾选「复用 freeapi 凭据」**（默认已勾选）即可直接复用 freeapi 插件里已配置的 API Key（同一把 `SENSENOVA_API_KEY`，无需再配第二把 key）；下拉可切换到免费额度池 `SENSENOVA_API_KEY_2.._10`。
+
+<p align="center">
+  <img src="./docs/config-with-freeapi.png" alt="已安装 dsh-sensenova-freeapi 的配置界面：勾选复用 freeapi 凭据" width="640">
+</p>
+
+**未安装 dsh-sensenova-freeapi 的用户**：取消勾选「复用 freeapi 凭据」后，可在密钥输入框直接填入自己的 SenseNova API Key（写入 DSH 凭据服务，页面不回显明文），并手动配置模型链。
+
+<p align="center">
+  <img src="./docs/config-no-freeapi.png" alt="未安装 dsh-sensenova-freeapi 的配置界面：取消复用、直接输入密钥" width="640">
+</p>
+
 ---
 
 ## 目录结构

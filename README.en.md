@@ -89,6 +89,20 @@ Settings namespace `vision-sensenova` (all `.volatile()`):
 
 > API keys are always stored via the DSH credentials service (credential-ref), **never logged, never echoed as plaintext**; diagnostic routes only return ref names and configured state.
 
+### Settings UI walkthrough
+
+**If you already have dsh-sensenova-freeapi installed**: in **Settings → SenseNova Vision Aid**, **check "Reuse freeapi credentials"** (checked by default) to directly reuse the API key already configured in the freeapi plugin (the same `SENSENOVA_API_KEY`; no second key needed); the dropdown can switch to the free quota pool `SENSENOVA_API_KEY_2.._10`.
+
+<p align="center">
+  <img src="./docs/config-with-freeapi.png" alt="Settings UI for users with dsh-sensenova-freeapi: check 'Reuse freeapi credentials'" width="640">
+</p>
+
+**If you don't have dsh-sensenova-freeapi**: uncheck "Reuse freeapi credentials", then type your own SenseNova API key into the key input (written to the DSH credentials service; the page never echoes plaintext) and configure the model chain manually.
+
+<p align="center">
+  <img src="./docs/config-no-freeapi.png" alt="Settings UI for users without dsh-sensenova-freeapi: uncheck reuse, type the key directly" width="640">
+</p>
+
 ---
 
 ## Directory structure
