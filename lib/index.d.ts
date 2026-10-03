@@ -23,6 +23,10 @@ interface VisionAidConfig {
   subagentModel?: string;
   /** 续接会话变体（预留）。 */
   useContinuable?: boolean;
+  /** 全局静默读图桥模式（off/on/auto，见 DEFAULT_BRIDGE_MODE）。 */
+  bridgeMode?: 'off' | 'on' | 'auto';
+  /** 视觉观察提示（空 = 默认提示）。 */
+  bridgePrompt?: string;
 }
 /**
  * 对外导出的配置 schema。
@@ -49,6 +53,10 @@ interface ResolvedVisionAidOptions {
   subagentProvider: string;
   subagentModel: string;
   useContinuable: boolean;
+  /** 全局静默读图桥模式（off/on/auto）。 */
+  bridgeMode: 'off' | 'on' | 'auto';
+  /** 视觉观察提示（空 = 默认提示）。 */
+  bridgePrompt: string;
 }
 /**
  * 从原始 config 到解析后运行事实的唯一显式步骤（freeapi 同款约定：程序化构造可能

@@ -29,6 +29,7 @@ import type {} from '@deepseek-ai/dsh-client-connection';
 import { plainConfig, resolveAdapterOptions, type ResolvedVisionAidOptions, type VisionAidConfig } from './config.ts';
 import { STATUS_ROUTE, TEST_ROUTE, handleStatusHttp, handleTestHttp } from './status-api.ts';
 import { chatTool, describeImageTool, describeImagesTool } from './tools.ts';
+import { installVisionBridge } from './vision-bridge.ts';
 
 export const name = 'vision-sensenova';
 /** 硬依赖仅 tools；其余（credentials/llm/subagents/attachments/connection）走可选注入。 */
@@ -59,6 +60,12 @@ export function apply(ctx: Context, config: VisionAidConfig): void {
   ctx.tools.register(describeImageTool({ ctx, options }));
   ctx.tools.register(describeImagesTool({ ctx, options }));
   ctx.tools.register(chatTool({ ctx, options }));
+
+  // 1.5) 全局静默读图桥（可选注入 llm：缺 llm 服务时跳过，插件其余功能照常）。
+  //      bridge 让纯文本主模型拖图不再被"模型不支持图片输入"阻断，由直连视觉链接手。
+  ctx.inject(['llm'], (llmCtx) => {
+    llmCtx.effect(() => installVisionBridge({ ctx: llmCtx, options }), 'vision-sensenova: global vision bridge');
+  });
 
   // 2) 设置命名空间声明（0.1.7 范式：组合层声明 + configure({auto:false})）。
   ctx.inject(['settings'], (settingsCtx) => {
